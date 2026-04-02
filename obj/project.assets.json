@@ -232,11 +232,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\nahuel.saucedo\\Downloads\\FichajApp_v8\\FichajApp\\FichajApp.csproj",
+      "projectUniqueName": "C:\\Users\\nahuel.saucedo\\Desktop\\FichajApp\\FichajApp.csproj",
       "projectName": "FichajApp",
-      "projectPath": "C:\\Users\\nahuel.saucedo\\Downloads\\FichajApp_v8\\FichajApp\\FichajApp.csproj",
+      "projectPath": "C:\\Users\\nahuel.saucedo\\Desktop\\FichajApp\\FichajApp.csproj",
       "packagesPath": "C:\\Users\\nahuel.saucedo\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\nahuel.saucedo\\Downloads\\FichajApp_v8\\FichajApp\\obj\\",
+      "outputPath": "C:\\Users\\nahuel.saucedo\\Desktop\\FichajApp\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

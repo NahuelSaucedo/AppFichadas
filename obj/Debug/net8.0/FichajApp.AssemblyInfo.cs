@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FichajApp")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a85ef8492506c5b6a07d2f924e8e69ef8695ba52")]
 [assembly: System.Reflection.AssemblyProductAttribute("FichajApp")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FichajApp")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

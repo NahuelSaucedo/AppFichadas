@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "h9zxF/U59j4=",
+  "dgSpecHash": "+RJQixZVnH0=",
   "success": true,
-  "projectFilePath": "C:\\Users\\nahuel.saucedo\\Downloads\\FichajApp_v8\\FichajApp\\FichajApp.csproj",
+  "projectFilePath": "C:\\Users\\nahuel.saucedo\\Desktop\\FichajApp\\FichajApp.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\nahuel.saucedo\\.nuget\\packages\\dapper\\2.1.35\\dapper.2.1.35.nupkg.sha512",
     "C:\\Users\\nahuel.saucedo\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\8.0.0\\microsoft.extensions.dependencyinjection.abstractions.8.0.0.nupkg.sha512",
