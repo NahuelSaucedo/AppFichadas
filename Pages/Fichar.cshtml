@@ -1,0 +1,318 @@
+@page
+@model FichajApp.Pages.FicharModel
+@using FichajApp.Services
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Fichar";
+    // Helper local para no repetir la llamada
+    string FmtFecha(DateTime utc, string fmt) => TimeHelper.AHoraArgentina(utc).ToString(fmt);
+}
+
+<div class="header-bar">
+    <div class="header-logo">⏱ FichajeApp</div>
+    <div class="clock-mini" id="clock-mini">--:--</div>
+</div>
+
+<div class="page-wrap">
+
+    @* ─── PASO 1: Ingresar DNI ─── *@
+    @if (Model.Paso == "inicio")
+    {
+        <div class="step-card">
+            <div class="step-icon">🪪</div>
+            <h2>Identificate</h2>
+            <p class="step-desc">Ingresá tu DNI para registrar tu asistencia</p>
+
+            @if (Model.ErrorDNI != null)
+            {
+                <div class="alert-error"><span>⚠</span> @Model.ErrorDNI</div>
+            }
+
+            <form method="post" asp-page-handler="BuscarEmpleado">
+                <div class="dni-input-wrap">
+                    <input type="number" name="dni"
+                           placeholder="Ej: 30123456"
+                           inputmode="numeric"
+                           autofocus
+                           class="dni-input"
+                           min="1000000" max="99999999" required />
+                    <button type="submit" class="btn-buscar">Continuar →</button>
+                </div>
+                <p class="hint">Solo números, sin puntos ni guiones</p>
+            </form>
+        </div>
+    }
+
+    @* ─── PASO 2: Confirmar + GPS ─── *@
+    @if (Model.Paso == "confirmar" && Model.EmpleadoEncontrado != null)
+    {
+        var emp = Model.EmpleadoEncontrado;
+        <div class="step-card">
+            <div class="empleado-banner">
+                <div class="emp-avatar">@emp.Iniciales</div>
+                <div class="emp-info">
+                    <div class="emp-nombre">@emp.NombreCompleto</div>
+                    <div class="emp-meta">DNI @emp.Dni · Legajo @emp.Legajo</div>
+                </div>
+            </div>
+
+            <div class="asignacion-row">
+                @if (emp.Ubicacion != null)
+                {
+                    <div class="asig-item asig-ok">
+                        <span class="asig-icon">📍</span>
+                        <div>
+                            <div class="asig-label">Tu ubicación</div>
+                            <div class="asig-val">@emp.Ubicacion.Nombre</div>
+                            <div class="asig-sub">±@emp.Ubicacion.RadioMetros m</div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="asig-item asig-warn">
+                        <span class="asig-icon">⚠</span>
+                        <div>
+                            <div class="asig-label">Sin ubicación asignada</div>
+                            <div class="asig-sub">Contactá al administrador</div>
+                        </div>
+                    </div>
+                }
+
+                @if (emp.Horario != null)
+                {
+                    <div class="asig-item asig-ok">
+                        <span class="asig-icon">🕐</span>
+                        <div>
+                            <div class="asig-label">Tu horario</div>
+                            <div class="asig-val">@emp.Horario.HoraEntradaStr – @emp.Horario.HoraSalidaStr</div>
+                            <div class="asig-sub">@emp.Horario.Nombre · ±@emp.Horario.ToleranciaMInutos min</div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="asig-item asig-neutral">
+                        <span class="asig-icon">🕐</span>
+                        <div>
+                            <div class="asig-label">Sin horario fijo</div>
+                            <div class="asig-sub">Podés fichar a cualquier hora</div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @if (Model.UltimaFichada != null)
+            {
+                var uf = Model.UltimaFichada;
+                <div class="ultimo-reg">
+                    Último registro:
+                    <strong class="@(uf.Tipo == "ENTRADA" ? "txt-green" : "txt-red")">@uf.Tipo</strong>
+                    @if (uf.Ubicacion != null) { <text>en @uf.Ubicacion.Nombre</text> }
+                    · <span class="mono">@FmtFecha(uf.FechaHora, "dd/MM HH:mm")</span>
+                </div>
+            }
+
+            <div class="gps-panel" id="gps-panel">
+                <div class="gps-icon" id="gps-icon">📡</div>
+                <div id="gps-msg">Obteniendo ubicación GPS...</div>
+                <div id="gps-coords" class="mono"></div>
+                <div class="gps-bar"><div class="gps-fill" id="gps-fill"></div></div>
+            </div>
+
+            <form method="post" asp-page-handler="Registrar" id="form-fichar">
+                <input type="hidden" name="empleadoId" value="@emp.Id" />
+                <input type="hidden" name="lat"       id="f-lat" />
+                <input type="hidden" name="lon"       id="f-lon" />
+                <input type="hidden" name="precision" id="f-precision" />
+                <input type="hidden" name="tipo"      id="f-tipo" />
+
+                <div class="tipo-buttons">
+                    <button type="button" class="btn-tipo btn-entrada" id="btn-e" disabled
+                            onclick="confirmar('ENTRADA')">
+                        <span class="tipo-icon">▶</span>
+                        <div>Entrada</div>
+                    </button>
+                    <button type="button" class="btn-tipo btn-salida" id="btn-s" disabled
+                            onclick="confirmar('SALIDA')">
+                        <span class="tipo-icon">■</span>
+                        <div>Salida</div>
+                    </button>
+                </div>
+                <p class="hint" id="gps-hint">Esperando señal GPS...</p>
+            </form>
+
+            <a href="/Fichar" class="link-volver">← Cambiar DNI</a>
+        </div>
+    }
+
+    @* ─── PASO 3: Resultado ─── *@
+    @if (Model.Paso == "resultado" && Model.EmpleadoEncontrado != null)
+    {
+        var emp = Model.EmpleadoEncontrado;
+        var v = Model.Validacion;
+        var ahoraArg = TimeHelper.Ahora();
+
+        <div class="step-card">
+            <div class="result-big @(Model.Exito ? "result-ok" : "result-err")">
+                <div class="result-emoji">
+                    @if (Model.Exito)                        { <text>✅</text> }
+                    else if (v?.FueraDeUbicacion == true)    { <text>📍</text> }
+                    else if (v?.FueraDeHorario == true)      { <text>🕐</text> }
+                    else if (v?.SalidaSinEntrada == true)    { <text>⛔</text> }
+                    else                                     { <text>❌</text> }
+                </div>
+                <div class="result-tipo">@Model.TipoRegistrado</div>
+                <div class="result-msg">@Html.Raw(Model.Resultado)</div>
+                @if (Model.Exito)
+                {
+                    <div class="result-time mono">
+                        @ahoraArg.ToString("HH:mm:ss") — @ahoraArg.ToString("dd/MM/yyyy")
+                        <span class="tz-label">GMT-3</span>
+                    </div>
+                }
+            </div>
+
+            @if (!Model.Exito && v != null)
+            {
+                <div class="bloqueo-detail">
+                    @if (v.FueraDeUbicacion)
+                    {
+                        <div class="bloqueo-row">
+                            <span class="bl-icon">📍</span>
+                            <div>
+                                <strong>Fuera del área asignada</strong>
+                                <div class="bl-sub">
+                                    Distancia: <span class="mono txt-red">@v.DistanciaMetros m</span>
+                                    · Permitido: <span class="mono txt-green">≤@emp.Ubicacion?.RadioMetros m</span>
+                                </div>
+                                <div class="bl-sub">Ubicación: <strong>@emp.Ubicacion?.Nombre</strong></div>
+                            </div>
+                        </div>
+                    }
+                    @if (v.FueraDeHorario)
+                    {
+                        <div class="bloqueo-row">
+                            <span class="bl-icon">🕐</span>
+                            <div>
+                                <strong>Fuera del horario asignado</strong>
+                                <div class="bl-sub">
+                                    @emp.Horario?.Nombre:
+                                    @emp.Horario?.HoraEntradaStr – @emp.Horario?.HoraSalidaStr
+                                    (±@emp.Horario?.ToleranciaMInutos min)
+                                </div>
+                                <div class="bl-sub">Hora actual GMT-3: <span class="mono">@ahoraArg.ToString("HH:mm:ss")</span></div>
+                            </div>
+                        </div>
+                    }
+                    @if (v.SalidaSinEntrada)
+                    {
+                        <div class="bloqueo-row">
+                            <span class="bl-icon">⛔</span>
+                            <div>
+                                <strong>Orden incorrecto</strong>
+                                <div class="bl-sub">Registrá ENTRADA antes de registrar SALIDA.</div>
+                            </div>
+                        </div>
+                    }
+                    @if (v.SinUbicacionAsignada)
+                    {
+                        <div class="bloqueo-row">
+                            <span class="bl-icon">⚙</span>
+                            <div>
+                                <strong>Sin configuración</strong>
+                                <div class="bl-sub">Contactá al administrador para asignar tu ubicación.</div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="empleado-banner compact">
+                <div class="emp-avatar sm">@emp.Iniciales</div>
+                <div class="emp-info">
+                    <div class="emp-nombre">@emp.NombreCompleto</div>
+                    <div class="emp-meta">DNI @emp.Dni · Legajo @emp.Legajo</div>
+                </div>
+            </div>
+
+            @if (Model.UltimasFichadas.Any())
+            {
+                <div class="historial-mini">
+                    <p class="h-title">Últimos registros</p>
+                    @foreach (var f in Model.UltimasFichadas)
+                    {
+                        <div class="h-row @(f.DispositivoInfo?.Valido == true ? "hv" : "hi")">
+                            <span class="h-tipo @(f.Tipo == "ENTRADA" ? "he" : "hs")">@f.Tipo</span>
+                            <span class="h-lugar">@(f.Ubicacion?.Nombre ?? "—")</span>
+                            @* Convertimos el UTC de Postgres → GMT-3 *@
+                            <span class="mono h-hora">@FmtFecha(f.FechaHora, "dd/MM HH:mm")</span>
+                        </div>
+                    }
+                </div>
+            }
+
+            <a href="/Fichar" class="btn-nuevo">＋ Nuevo fichaje</a>
+        </div>
+    }
+</div>
+
+<script>
+// Reloj en GMT-3 desde el cliente (JavaScript ya usa la hora local del dispositivo)
+function tick() {
+    const n = new Date();
+    // Forzar GMT-3 independientemente de la configuración del celular
+    const arg = new Date(n.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
+    document.getElementById('clock-mini').textContent =
+        arg.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+}
+setInterval(tick, 1000); tick();
+
+@if (Model.Paso == "confirmar")
+{
+    <text>
+    let gpsOk = false, curLat = null, curLon = null, curPrec = null;
+
+    function setGpsOk(lat, lon, acc) {
+        curLat = lat; curLon = lon; curPrec = acc; gpsOk = true;
+        document.getElementById('gps-icon').textContent = '✅';
+        document.getElementById('gps-msg').textContent = `GPS listo (±${Math.round(acc)} m)`;
+        document.getElementById('gps-coords').textContent = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+        document.getElementById('gps-fill').style.width = '100%';
+        document.getElementById('gps-panel').classList.add('gps-ready');
+        document.getElementById('btn-e').disabled = false;
+        document.getElementById('btn-s').disabled = false;
+        document.getElementById('gps-hint').textContent = `Precisión ±${Math.round(acc)} m`;
+    }
+
+    function setGpsErr(msg) {
+        document.getElementById('gps-icon').textContent = '❌';
+        document.getElementById('gps-msg').textContent = msg;
+        document.getElementById('gps-hint').textContent = 'Habilitá el GPS del dispositivo';
+    }
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            p => setGpsOk(p.coords.latitude, p.coords.longitude, p.coords.accuracy),
+            e => {
+                const msgs = ['', 'Permiso denegado', 'Ubicación no disponible', 'Tiempo agotado'];
+                setGpsErr(msgs[e.code] || 'Error GPS');
+            },
+            { enableHighAccuracy: true, timeout: 20000, maximumAge: 5000 }
+        );
+    } else {
+        setGpsErr('GPS no soportado');
+    }
+
+    function confirmar(tipo) {
+        if (!gpsOk) { alert('Esperá a que el GPS esté listo.'); return; }
+        if (!confirm(`¿Confirmás el registro de ${tipo}?`)) return;
+        document.getElementById('f-lat').value = curLat;
+        document.getElementById('f-lon').value = curLon;
+        document.getElementById('f-precision').value = curPrec;
+        document.getElementById('f-tipo').value = tipo;
+        document.getElementById('form-fichar').submit();
+    }
+    </text>
+}
+</script>

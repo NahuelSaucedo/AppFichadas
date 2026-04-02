@@ -1,0 +1,116 @@
+@page
+@model FichajApp.Pages.AdminModel
+@using FichajApp.Services
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Fichadas";
+}
+
+<div class="header-bar">
+    <div class="header-logo">📋 Registro de Fichadas</div>
+    <a href="/Fichar" class="btn-ir-fichar">Ir a Fichar</a>
+</div>
+
+<div class="page-wrap admin-wrap">
+
+    <!-- Resumen -->
+    <div class="stats-row">
+        <div class="stat-card stat-green">
+            <div class="stat-num">@Model.TotalEntradas</div>
+            <div class="stat-lbl">▶ Entradas</div>
+        </div>
+        <div class="stat-card stat-red">
+            <div class="stat-num">@Model.TotalSalidas</div>
+            <div class="stat-lbl">■ Salidas</div>
+        </div>
+        <div class="stat-card stat-yellow">
+            <div class="stat-num">@Model.TotalInvalidas</div>
+            <div class="stat-lbl">❌ Rechazadas</div>
+        </div>
+        <div class="stat-card stat-blue">
+            <div class="stat-num">@Model.Fichadas.Count</div>
+            <div class="stat-lbl">Total</div>
+        </div>
+    </div>
+
+    <!-- Filtros rápidos -->
+    <div class="filter-bar">
+        <input type="text" id="filtro" placeholder="🔍 Buscar empleado, DNI o ubicación..."
+               oninput="filtrar()" class="filtro-input" />
+        <div class="filter-btns">
+            <button class="fbtn active" onclick="filtrarTipo('', this)">Todos</button>
+            <button class="fbtn"        onclick="filtrarTipo('ENTRADA', this)">Entradas</button>
+            <button class="fbtn"        onclick="filtrarTipo('SALIDA', this)">Salidas</button>
+            <button class="fbtn"        onclick="filtrarTipo('❌', this)">Rechazadas</button>
+        </div>
+    </div>
+
+    <!-- Tabla -->
+    <div class="table-scroll">
+        <table class="data-table" id="tabla-fichadas">
+            <thead>
+                <tr>
+                    <th>Empleado</th>
+                    <th>DNI</th>
+                    <th>Legajo</th>
+                    <th>Tipo</th>
+                    <th>Ubicación</th>
+                    <th>Fecha/Hora</th>
+                    <th>Dist.</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var f in Model.Fichadas)
+                {
+                    <tr class="@(f.Valido ? "" : "tr-err")" data-tipo="@f.Tipo" data-valido="@f.Valido.ToString().ToLower()">
+                        <td>@f.EmpleadoNombre</td>
+                        <td class="mono">@f.EmpleadoDni</td>
+                        <td class="mono">@f.EmpleadoLegajo</td>
+                        <td class="@(f.Tipo == "ENTRADA" ? "td-e" : "td-s")"><strong>@f.Tipo</strong></td>
+                        <td>@(f.UbicacionNombre ?? "—")</td>
+                        <td class="mono">@f.FechaHora.ToLocalTime().ToString("dd/MM/yy HH:mm:ss")</td>
+                        <td class="mono">@(f.DistanciaMetros.HasValue ? $"{f.DistanciaMetros:F0} m" : "—")</td>
+                        <td>@(f.Valido ? "✅" : "❌")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @if (!Model.Fichadas.Any())
+        {
+            <div class="empty-state">
+                <div class="empty-icon">📋</div>
+                <p>No hay fichadas registradas aún.</p>
+            </div>
+        }
+    </div>
+
+</div>
+
+<script>
+let tipoFiltro = '';
+
+function filtrar() {
+    const texto = document.getElementById('filtro').value.toLowerCase();
+    document.querySelectorAll('#tabla-fichadas tbody tr').forEach(tr => {
+        const contenido = tr.textContent.toLowerCase();
+        const tipo = tr.dataset.tipo;
+        const valido = tr.dataset.valido;
+
+        const matchTexto = contenido.includes(texto);
+        let matchTipo = true;
+        if (tipoFiltro === 'ENTRADA') matchTipo = tipo === 'ENTRADA' && valido === 'true';
+        else if (tipoFiltro === 'SALIDA')  matchTipo = tipo === 'SALIDA'  && valido === 'true';
+        else if (tipoFiltro === '❌')       matchTipo = valido === 'false';
+
+        tr.style.display = (matchTexto && matchTipo) ? '' : 'none';
+    });
+}
+
+function filtrarTipo(tipo, btn) {
+    tipoFiltro = tipo;
+    document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filtrar();
+}
+</script>
