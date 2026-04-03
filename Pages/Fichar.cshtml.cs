@@ -27,7 +27,7 @@ public class FicharModel : PageModel
         return Task.CompletedTask;
     }
 
-    // ─── Paso 1: buscar empleado por DNI ─────────────────────
+    // Paso 1: buscar empleado por DNI
     public async Task<IActionResult> OnPostBuscarEmpleadoAsync([FromForm] string dni)
     {
         AhoraArgentina = TimeHelper.Ahora();
@@ -35,7 +35,7 @@ public class FicharModel : PageModel
 
         if (empleado == null)
         {
-            ErrorDNI = $"No se encontró ningún empleado activo con DNI {dni}.";
+            ErrorDNI = $"No se encontro ningun empleado activo con DNI {dni}.";
             Paso = "inicio";
             return Page();
         }
@@ -47,7 +47,7 @@ public class FicharModel : PageModel
         return Page();
     }
 
-    // ─── Paso 2: registrar con GPS ────────────────────────────
+    // Paso 2: registrar con GPS
     public async Task<IActionResult> OnPostRegistrarAsync(
         [FromForm] string empleadoId,
         [FromForm] double lat,
@@ -67,18 +67,18 @@ public class FicharModel : PageModel
         EmpleadoEncontrado = empleado;
         var validacion = new ValidacionFichada();
 
-        // ── VALIDACIÓN 1: Sin ubicación asignada ──────────────
+        // VALIDACION 1: Sin ubicacion asignada
         if (empleado.UbicacionId == null || empleado.Ubicacion == null)
         {
             validacion.Permitido = false;
             validacion.SinUbicacionAsignada = true;
-            validacion.MotivoBloqueo = "Tu usuario no tiene una ubicación asignada. Contactá al administrador.";
+            validacion.MotivoBloqueo = "Tu usuario no tiene una ubicacion asignada. Contacta al administrador.";
             return await MostrarResultado(empGuid, validacion, tipo);
         }
 
         var ubicacion = empleado.Ubicacion;
 
-        // ── VALIDACIÓN 2: Distancia GPS ───────────────────────
+        // VALIDACION 2: Distancia GPS — UNICO BLOQUEO
         var distancia = Math.Round(GeoService.CalcularDistancia(lat, lon, ubicacion.Latitud, ubicacion.Longitud), 1);
         validacion.DistanciaMetros = distancia;
 
@@ -87,29 +87,12 @@ public class FicharModel : PageModel
             validacion.Permitido = false;
             validacion.FueraDeUbicacion = true;
             validacion.MotivoBloqueo =
-                $"Estás a <strong>{distancia} m</strong> de <strong>{ubicacion.Nombre}</strong>.<br>" +
-                $"<small>Necesitás estar dentro de los {ubicacion.RadioMetros} m permitidos.</small>";
+                $"Estas a <strong>{distancia} m</strong> de <strong>{ubicacion.Nombre}</strong>.<br>" +
+                $"<small>Necesitas estar dentro de los {ubicacion.RadioMetros} m permitidos.</small>";
             return await MostrarResultado(empGuid, validacion, tipo);
         }
 
-        // ── VALIDACIÓN 3: Horario ─────────────────────────────
-        if (empleado.HorarioId != null && empleado.Horario != null)
-        {
-            // Usamos la hora actual en GMT-3 para comparar
-            var horaActualArg = TimeHelper.HoraActual();
-            if (!empleado.Horario.EstaEnRango(horaActualArg))
-            {
-                validacion.Permitido = false;
-                validacion.FueraDeHorario = true;
-                validacion.MotivoBloqueo =
-                    $"Fuera del horario: <strong>{empleado.Horario.Nombre}</strong><br>" +
-                    $"<small>{empleado.Horario.HoraEntradaStr} – {empleado.Horario.HoraSalidaStr} " +
-                    $"(±{empleado.Horario.ToleranciaMInutos} min)</small>";
-                return await MostrarResultado(empGuid, validacion, tipo);
-            }
-        }
-
-        // ── VALIDACIÓN 4: Salida sin entrada hoy ─────────────
+        // VALIDACION 3: No SALIDA sin ENTRADA previa hoy
         if (tipo == "SALIDA")
         {
             var ultimaHoy = await _supa.GetUltimaFichadaHoyAsync(empGuid);
@@ -118,23 +101,24 @@ public class FicharModel : PageModel
                 validacion.Permitido = false;
                 validacion.SalidaSinEntrada = true;
                 validacion.MotivoBloqueo =
-                    "No podés registrar <strong>SALIDA</strong> sin haber registrado " +
+                    "No podes registrar <strong>SALIDA</strong> sin haber registrado " +
                     "<strong>ENTRADA</strong> primero hoy.";
                 return await MostrarResultado(empGuid, validacion, tipo);
             }
         }
 
-        // ── TODO OK: registrar en UTC (Postgres lo guarda como timestamptz) ──
+        // TODO OK: registrar
         validacion.Permitido = true;
         var fichada = new Fichada
         {
             EmpleadoId  = empGuid,
             UbicacionId = ubicacion.Id,
             Tipo        = tipo == "SALIDA" ? "SALIDA" : "ENTRADA",
-            FechaHora   = DateTime.UtcNow,   // UTC para Postgres; mostramos en GMT-3
+            FechaHora   = DateTime.UtcNow,
             DispositivoInfo = new DispositivoInfo
             {
-                Latitud = lat, Longitud = lon,
+                Latitud = lat,
+                Longitud = lon,
                 Precision = precision,
                 DistanciaMetros = distancia,
                 Valido = true,
@@ -146,9 +130,7 @@ public class FicharModel : PageModel
         fichada.Ubicacion = ubicacion;
 
         TipoRegistrado = fichada.Tipo;
-        // Mostramos la hora en GMT-3
-        var horaArgentina = TimeHelper.Ahora();
-        Resultado = $"Registrada en <strong>{ubicacion.Nombre}</strong> · {distancia} m del punto";
+        Resultado = $"Registrada en <strong>{ubicacion.Nombre}</strong> &middot; {distancia} m del punto";
         Exito = true;
         Validacion = validacion;
         return await MostrarResultado(empGuid, validacion, tipo, registrado: true);
